@@ -9,21 +9,40 @@ from solution.solution import (
     rk4_until_eps, milne,
 )
 
+
+
+global result_text
+result_text = None
+
 FUNCTIONS = {
     "y' = y + x":      lambda x, y: y + x,
-    "y' = y - x":      lambda x, y: y - x,
     "y' = x * y":      lambda x, y: x * y,
-    "y' = y^2 + x":    lambda x, y: y ** 2 + x,
-    "y' = sin(x) + y": lambda x, y: np.sin(x) + y,
 }
 
 EXACT = {
     "y' = y + x":      lambda x, y0, x0: np.exp(x - x0) * (y0 + x0 + 1) - x - 1,
-    "y' = y - x":      lambda x, y0, x0: np.exp(x - x0) * (y0 - x0 + 1) + x - 1,
     "y' = x * y":      lambda x, y0, x0: y0 * np.exp((x ** 2 - x0 ** 2) / 2),
-    "y' = y^2 + x":    lambda x, y0, x0: np.nan if (2*y0 + 1 - 2*x + 2*x0) < 0 else (np.sqrt(2*y0 + 1 - 2*x + 2*x0) - 1)/2,
-    "y' = sin(x) + y": lambda x, y0, x0: (y0 + np.cos(x0) + np.sin(x0)) * np.exp(x - x0) - np.sin(x) - np.cos(x),
 }
+
+
+
+FUNCTIONS.update({
+    "y' = y": lambda x, y: y,
+    "y' = x": lambda x, y: x,
+    "y' = 2x + 1": lambda x, y: 2 * x + 1,
+    "y' = cos(x)": lambda x, y: np.cos(x),
+})
+
+EXACT.update({
+    "y' = y": lambda x, y0, x0: y0 * np.exp(x - x0),
+    "y' = x": lambda x, y0, x0: y0 + (x**2 - x0**2) / 2,
+    "y' = 2x + 1": lambda x, y0, x0: y0 + (x**2 - x0**2) + (x - x0),
+    "y' = cos(x)": lambda x, y0, x0: y0 + np.sin(x) - np.sin(x0),
+})
+
+
+
+
 
 
 def solve_and_show():
@@ -43,6 +62,14 @@ def solve_and_show():
     exact_fn = EXACT[fn]
 
     xs = make_grid(x0, xn, h)
+
+    if len(xs) < 2:
+        print(f"Ошибка: шаг h = {h} слишком большой, интервал [{x0}, {xn}] содержит только одну точку.")
+        return
+    if len(xs) < 4:
+        print(f"Ошибка: метод Милна требует как минимум 4 точки, а сейчас только {len(xs)}.")
+        return
+
     y_exact = [exact_fn(x, y0, x0) for x in xs]
 
     xs_eul, y_eul, err_e = improved_euler_until_eps(f, x0, xn, y0, h, eps)
@@ -52,20 +79,24 @@ def solve_and_show():
 
     def safe(val): return float(val) if np.isfinite(val) else float('nan')
 
+
+
+    def append_table_rows(xs_local, y_local, y_exact_local, method_name, err_local):
+        txt.insert(tk.END, f"\n{method_name}:\n")
+        txt.insert(tk.END, f"{'x':<9}{'y*':>11}{'y':>11}{'err':>11}\n")
+        for i in range(len(xs_local)):
+            x = xs_local[i]
+            y_ex = safe(y_exact_local[i]) if i < len(y_exact_local) else float('nan')
+            y_approx = safe(y_local[i])
+            err_val = safe(err_local[i]) if i < len(err_local) else float('nan')
+            txt.insert(tk.END, f"{x:<9.4f}{y_ex:>11.4f}{y_approx:>11.4f}{err_val:>11.4f}\n")
+
     txt.delete("1.0", tk.END)
-    header = f"{'x':<7}{'y*':>11}{'Euler':>11}{'errE':>9}"\
-             f"{'RK4':>11}{'errRK':>9}{'Milne':>11}{'errM':>9}\n"
-    txt.insert(tk.END, header)
-    for i, x in enumerate(xs):
-        y_ex = safe(y_exact[i])
-        yeul = safe(y_eul[i])
-        e_eul = safe(err_e[i])
-        yrk = safe(y_rk[i]) if i < len(y_rk) else np.nan
-        e_rk = safe(err_rk[i]) if i < len(err_rk) else np.nan
-        ym = safe(y_m[i])
-        em = safe(err_m[i])
-        txt.insert(tk.END, f"{x:<7.3f}{y_ex:>11.3f}{yeul:>11.3f}{e_eul:>9.3f}"
-                           f"{yrk:>11.3f}{e_rk:>9.3f}{ym:>11.3f}{em:>9.3f}\n")
+
+    append_table_rows(xs_eul, y_eul, [exact_fn(x, y0, x0) for x in xs_eul], "Improved Euler", err_e)
+    append_table_rows(xs_rk,  y_rk,  [exact_fn(x, y0, x0) for x in xs_rk],  "Runge-Kutta 4", err_rk)
+    append_table_rows(xs,     y_m,   y_exact,                               "Milne",         err_m)
+
 
     for w in plot_frm.winfo_children():
         w.destroy()
@@ -107,7 +138,10 @@ for e, v in zip(ents, ("1", "0", "1", "0.1", "1e-4")):
 
 tk.Button(frm, text="Solve", command=solve_and_show).grid(row=6, column=1, pady=6, sticky='w')
 
-txt = tk.Text(root, height=15, width=120, wrap='none'); txt.pack(fill='x')
+
+result_text = tk.Text(root, height=15, width=120, wrap='none')
+result_text.pack(fill='x')
+txt = result_text
 plot_frm = tk.Frame(root); plot_frm.pack(expand=True, fill='both')
 
 
@@ -132,3 +166,10 @@ def start_gui_plot(xs, y_exact, xs_eul, y_eul, xs_rk, y_rk, xs_milne, y_milne):
 
 def start_gui():
     root.mainloop()
+
+
+
+def update_result_text(content: str):
+    if result_text:
+        result_text.delete("1.0", tk.END)
+        result_text.insert("1.0", content)
