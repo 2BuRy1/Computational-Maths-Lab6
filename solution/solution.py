@@ -26,7 +26,7 @@ def runge_kutta4(f, xs, y0):
     return ys
 
 
-def milne(f, xs, y0, eps):
+def    milne(f, xs, y0, eps):
     n = len(xs)
     h = xs[1] - xs[0]
     y = [y0]

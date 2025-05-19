@@ -5,8 +5,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import numpy as np
 
 from solution.solution import (
-    make_grid, improved_euler_until_eps, runge_kutta4,
-    rk4_until_eps, milne, milne_until_eps
+    make_grid, improved_euler_until_eps,
+    rk4_until_eps, milne,
 )
 
 FUNCTIONS = {
@@ -28,8 +28,8 @@ EXACT = {
 
 def solve_and_show():
     try:
-        y0, x0, xn, h, eps = map(float, (e_y0.get(), e_x0.get(),
-                                         e_xn.get(), e_h.get(), e_eps.get()))
+        y0, x0, xn, h, eps = map(float, (e_y0.get().replace(",", "."), e_x0.get().replace(",", "."),
+                                         e_xn.get().replace(",", "."), e_h.get().replace(",", "."), e_eps.get().replace(",", ".")))
     except ValueError:
         messagebox.showerror("Ошибка", "Неверный ввод")
         return
